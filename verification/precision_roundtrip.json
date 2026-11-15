@@ -1,0 +1,9 @@
+{
+  "file": "D:\\Code\\CausticDP\\JAX3\\results\\saturn_centered_poly\\lens_precision.stl",
+  "vertices": 735440,
+  "faces": 1470876,
+  "watertight": true,
+  "winding_consistent": true,
+  "max_float64_vertex_difference_mm": 0.0,
+  "volume_mm3": 33765.7976794147
+}

@@ -1,0 +1,31 @@
+{
+  "image": "../examples/target_square.png",
+  "mask": "../examples/mask_convex.png",
+  "out": "../results/general_quick",
+  "refractive_index": 1.45,
+  "air_index": 1,
+  "L_mm": 40,
+  "distance_mm": 120,
+  "target_size_mm": 30,
+  "mesh_n": 32,
+  "profile": "quick",
+  "threads": 2,
+  "optics": {
+    "ot_sites": 128,
+    "ot_resolution": 128,
+    "fit_iterations": 50,
+    "image_iterations": 10,
+    "trace_power": 18,
+    "ascii_stl": true
+  },
+  "stages": [
+    {
+      "name": "refined",
+      "adaptive": 1,
+      "iterations": 12,
+      "thin_weight": 60,
+      "mapping_anchor": 0.01,
+      "resolution": 256
+    }
+  ]
+}

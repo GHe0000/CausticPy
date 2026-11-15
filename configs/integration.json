@@ -1,0 +1,13 @@
+{
+  "center_target": true,
+  "ot_sites": 64,
+  "ot_resolution": 64,
+  "mesh_levels": [
+    12
+  ],
+  "fit_iterations": 10,
+  "image_iterations": 2,
+  "image_resolution": 64,
+  "trace_power": 12,
+  "boundary_segments": 64
+}

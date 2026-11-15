@@ -1,0 +1,29 @@
+{
+  "image": "../examples/target_square.png",
+  "mask": "../examples/mask_circle.png",
+  "out": "../results/general_high",
+  "refractive_index": 1.5,
+  "air_index": 1,
+  "L_mm": 60,
+  "distance_mm": 100,
+  "target_size_mm": 50,
+  "mesh_n": 600,
+  "profile": "high",
+  "threads": 0,
+  "center_target": true,
+  "mask_threshold": 127,
+  "optics": {
+    "base_mm": 9,
+    "min_thickness_mm": 2,
+    "max_thickness_mm": 22,
+    "ot_sites": 8192,
+    "ot_resolution": 0,
+    "image_resolution": 384,
+    "fit_iterations": 400,
+    "image_iterations": 80,
+    "trace_power": 24,
+    "fine_quadrature": 32,
+    "ascii_stl": true
+  },
+  "stages": null
+}

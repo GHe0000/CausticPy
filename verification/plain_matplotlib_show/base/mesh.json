@@ -1,0 +1,15 @@
+{
+  "watertight": true,
+  "winding_consistent": true,
+  "euler_number": 2,
+  "volume_mm3": 8553.405890205318,
+  "vertices": 376,
+  "faces": 748,
+  "min_thickness_mm": 6.384552989983095,
+  "max_thickness_mm": 10.043898592669791,
+  "cnc_height_field": true,
+  "tool_radius_compensation": false,
+  "ascii_precision_stl": true,
+  "stl_units": "mm (STL itself is unitless)",
+  "body_count": 1
+}

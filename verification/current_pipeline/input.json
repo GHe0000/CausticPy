@@ -1,0 +1,15 @@
+{
+  "path": "D:\\Code\\CausticDP\\JAX3\\target_saturn.png",
+  "sha256": "0b62bb5b83cb9d7930a26094c3fbc840cc1884b5fab245f22068acf1e1f0cc75",
+  "shape": [
+    1080,
+    1227
+  ],
+  "center_target": true,
+  "pixel_shift": [
+    -6,
+    62
+  ],
+  "reference": "screen z=100 mm from flat entrance z=0; propagation +z",
+  "image_model": "relative linear grayscale irradiance, zero black density"
+}

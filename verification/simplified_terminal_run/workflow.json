@@ -1,0 +1,10 @@
+[
+  {
+    "name": "refined",
+    "adaptive": 1,
+    "iterations": 12,
+    "thin_weight": 60,
+    "mapping_anchor": 0.01,
+    "resolution": 256
+  }
+]

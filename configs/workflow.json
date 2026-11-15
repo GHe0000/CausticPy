@@ -1,0 +1,34 @@
+{
+  "base_config": "configs/quality.json",
+  "refinements": [
+    {
+      "name": "adaptive",
+      "resolution": 1227,
+      "iterations": 400,
+      "thin_weight": 60,
+      "adaptive": 2
+    },
+    {
+      "name": "adaptive_fine",
+      "resolution": 1227,
+      "iterations": 400,
+      "thin_weight": 120,
+      "adaptive": 1
+    },
+    {
+      "name": "detail",
+      "resolution": 1227,
+      "iterations": 200,
+      "thin_weight": 240,
+      "adaptive": 0
+    },
+    {
+      "name": "final",
+      "resolution": 1227,
+      "iterations": 240,
+      "thin_weight": 240,
+      "adaptive": 0,
+      "mapping_anchor": 0.003
+    }
+  ]
+}

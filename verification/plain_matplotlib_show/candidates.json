@@ -1,0 +1,49 @@
+[
+  {
+    "directory": "D:\\Code\\CausticDP\\JAX3\\verification\\plain_matplotlib_show\\base",
+    "label": "base",
+    "metrics": {
+      "incident_rays": 4096,
+      "aperture_miss": 0,
+      "tir": 0,
+      "backward": 0,
+      "outside_screen": 0,
+      "captured": 4096,
+      "raytrace_workers": 1,
+      "captured_flux": 1.0,
+      "physical_transmitted_screen_flux": 0.9336234629637385,
+      "dark_leak_incident": 0.20654296875,
+      "dark_leak_captured": 0.20654296875,
+      "target_l1": 1.9698276241221078,
+      "edge_gradient_relative_l1": 111.82326574066431,
+      "edge_band_flux": 0.031005859375,
+      "rmse_relative": 7.202967732825057,
+      "thin_pixels": 649,
+      "thin_recall_at_quarter_target": 0.007704160246533128,
+      "thin_flux_ratio": 0.4953713732900668,
+      "bright_mean_dark_mean_ratio": 23.131810091012834,
+      "min_snell_discriminant": 0.812144827647482,
+      "max_surface_slope": 0.3132329691722043,
+      "flux_accounting_error": 0.0,
+      "display_saturation_fraction": 0.002704697152960853
+    },
+    "mesh": {
+      "watertight": true,
+      "winding_consistent": true,
+      "euler_number": 2,
+      "volume_mm3": 8553.405890205318,
+      "vertices": 376,
+      "faces": 748,
+      "min_thickness_mm": 6.384552989983095,
+      "max_thickness_mm": 10.043898592669791,
+      "cnc_height_field": true,
+      "tool_radius_compensation": false,
+      "ascii_precision_stl": true,
+      "stl_units": "mm (STL itself is unitless)",
+      "body_count": 1
+    },
+    "basic_imaging_pass": false,
+    "thin_detail_pass": false,
+    "optical_quality_pass": false
+  }
+]

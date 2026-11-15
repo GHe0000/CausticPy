@@ -1,0 +1,15 @@
+{
+  "image": "D:\\Code\\CausticDP\\JAX3\\examples\\target_square.png",
+  "mask": "D:\\Code\\CausticDP\\JAX3\\examples\\mask_convex.png",
+  "shape": [
+    1227,
+    1227
+  ],
+  "pixel_shift": [
+    -6,
+    63
+  ],
+  "image_sha256": "a2c21a9a0a01f205b05a26c18689cbede36383560f91ba00f3f28914e4efc409",
+  "mask_sha256": "d16e020342a97f2176959ee4ee7ef8416a2cbb82966931e1c5e537dc5686aa6c",
+  "illumination": "uniform parallel +z light restricted to the convex lens aperture"
+}

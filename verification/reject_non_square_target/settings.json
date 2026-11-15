@@ -1,0 +1,22 @@
+{
+  "image": "D:\\Code\\CausticDP\\JAX3\\target_saturn.png",
+  "mask": "D:\\Code\\CausticDP\\JAX3\\examples\\mask_convex.png",
+  "out": "D:\\Code\\CausticDP\\JAX3\\verification\\reject_non_square_target",
+  "refractive_index": 1.5,
+  "air_index": 1.0,
+  "L_mm": 60.0,
+  "distance_mm": 100.0,
+  "target_size_mm": 50.0,
+  "mesh_n": 600,
+  "profile": "quick",
+  "threads": 0,
+  "center_target": true,
+  "mask_threshold": 127,
+  "cmap": "viridis",
+  "show": false,
+  "three_d": true,
+  "wireframe": false,
+  "heartbeat_seconds": 10.0,
+  "optics": {},
+  "stages": null
+}
