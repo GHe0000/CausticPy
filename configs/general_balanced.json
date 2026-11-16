@@ -1,0 +1,55 @@
+{
+  "image": "../examples/target_square.png",
+  "mask": "../examples/mask_circle.png",
+  "out": "../results/general_balanced",
+  "refractive_index": 1.5,
+  "air_index": 1,
+  "L_mm": 60,
+  "distance_mm": 100,
+  "target_size_mm": 50,
+  "mesh_n": 600,
+  "threads": 0,
+  "center_target": true,
+  "mask_threshold": 127,
+  "optics": {
+    "base_mm": 9.0,
+    "min_thickness_mm": 2.0,
+    "max_thickness_mm": 22.0,
+    "ot_sites": 2048,
+    "ot_resolution": 512,
+    "ot_tol": 1e-10,
+    "ot_iterations": 500,
+    "boundary_segments": 512,
+    "fit_iterations": 220,
+    "image_iterations": 80,
+    "mapping_anchor": 0.03,
+    "normal_weight": 10.0,
+    "slope_regularization": 1e-05,
+    "mean_height_weight": 0.001,
+    "image_weight": 100.0,
+    "edge_weight": 20.0,
+    "dark_weight": 3.0,
+    "tir_weight": 100000.0,
+    "tir_margin": 0.04,
+    "fine_quadrature": 32,
+    "ascii_stl": true,
+    "thin_weight": 1.0,
+    "image_resolution": 384,
+    "trace_power": 22,
+    "seed": 1701
+  },
+  "stages": [
+    {
+      "name": "refine",
+      "adaptive": 1,
+      "iterations": 180,
+      "thin_weight": 60,
+      "mapping_anchor": 0.01
+    }
+  ],
+  "coarse_mesh_levels": [
+    48,
+    120,
+    300
+  ]
+}

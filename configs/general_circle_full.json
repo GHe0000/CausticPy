@@ -1,0 +1,80 @@
+{
+  "image": "../examples/target_square.png",
+  "mask": "../examples/mask_circle_full.png",
+  "out": "../results/circle60_full",
+  "refractive_index": 1.5,
+  "air_index": 1,
+  "L_mm": 60,
+  "distance_mm": 100,
+  "target_size_mm": 50,
+  "mesh_n": 600,
+  "threads": 0,
+  "center_target": true,
+  "mask_threshold": 127,
+  "optics": {
+    "base_mm": 9,
+    "min_thickness_mm": 2,
+    "max_thickness_mm": 22,
+    "ot_sites": 8192,
+    "ot_resolution": 0,
+    "ot_tol": 1e-10,
+    "ot_iterations": 500,
+    "boundary_segments": 768,
+    "fit_iterations": 400,
+    "image_iterations": 80,
+    "mapping_anchor": 0.03,
+    "normal_weight": 10.0,
+    "slope_regularization": 1e-05,
+    "mean_height_weight": 0.001,
+    "image_weight": 100.0,
+    "edge_weight": 20.0,
+    "dark_weight": 3.0,
+    "tir_weight": 100000.0,
+    "tir_margin": 0.04,
+    "fine_quadrature": 0,
+    "ascii_stl": true,
+    "thin_weight": 1.0,
+    "image_resolution": 384,
+    "trace_power": 24,
+    "seed": 1701
+  },
+  "stages": [
+    {
+      "name": "adaptive",
+      "adaptive": 2,
+      "iterations": 400,
+      "thin_weight": 60,
+      "mapping_anchor": 0.03,
+      "resolution": 0
+    },
+    {
+      "name": "adaptive_fine",
+      "adaptive": 1,
+      "iterations": 400,
+      "thin_weight": 120,
+      "mapping_anchor": 0.03,
+      "resolution": 0
+    },
+    {
+      "name": "detail",
+      "adaptive": 0,
+      "iterations": 240,
+      "thin_weight": 240,
+      "mapping_anchor": 0.003,
+      "resolution": 0
+    },
+    {
+      "name": "final",
+      "adaptive": 0,
+      "iterations": 400,
+      "thin_weight": 1000,
+      "mapping_anchor": 0.001,
+      "resolution": 0
+    }
+  ],
+  "coarse_mesh_levels": [
+    48,
+    120,
+    300
+  ]
+}
