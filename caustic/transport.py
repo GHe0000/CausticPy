@@ -31,11 +31,11 @@ def solve(gray,c,out,warm=None,source_domain=None):
     # Final stage is EXACTLY the original raster, with zero dark density.
     weights0=warm;stages=[]
     mean=reduced.mean()
-    for alpha in ([1.] if warm is not None else [0.,.5,.9,.99,.999,1.]):
+    for alpha in ([1.] if warm is not None else c.solver["sdot"]["density_stages"]):
         logging.info("SDOT solving density stage alpha=%g, sites=%s",alpha,len(seeds))
         values=alpha*reduced+(1-alpha)*mean
         density=sdot.Image(np.ascontiguousarray(values[::-1].T),origin=np.array([-w/2,-h/2]),frame=np.diag([w,h]))
-        sol=sdot.ot_solve(sdot.SumOfDiracs(seeds,weights=masses),density,tol=c.ot_tol,max_iter=c.ot_iterations,
+        sol=sdot.ot_solve(sdot.SumOfDiracs(seeds,weights=masses),density,tol=c.solver["sdot"]["tol"],max_iter=c.solver["sdot"]["max_iter"],
                           weights0=weights0,continuation='never')
         weights0=np.asarray(sol.weights)
         stages.append(dict(alpha=alpha,**dict(sol.stats)))
@@ -49,7 +49,6 @@ def solve(gray,c,out,warm=None,source_domain=None):
                  source_mask_area_mm2=source_domain.area if source_domain is not None else None,
                  mapping='reverse SDOT barycentric correspondence; piecewise linear interpolation')
     if not np.isfinite(dst).all(): raise RuntimeError('Invalid transport barycenters')
-    np.savez_compressed(out/'transport.npz',seeds=seeds,source=src,target=dst,capacities=masses,cell_masses=actual,weights=np.asarray(sol.weights))
     return Correspondence(src,dst),stats
 class Correspondence:
     def __init__(self,src,dst):

@@ -33,7 +33,7 @@ def optimize(mapping,gray,c,out,initial=None,mesh_override=None,mesh_factory=Non
             anchor=csr_matrix(np.ones((1,len(xy)))/len(xy))
             A=vstack([gx.multiply(np.sqrt(area[:,None])),gy.multiply(np.sqrt(area[:,None])),anchor])
             b=np.r_[slope[:,0]*np.sqrt(area),slope[:,1]*np.sqrt(area),0.]
-            heights=c.base_mm+lsmr(A,b,atol=1e-9,btol=1e-9,maxiter=3000)[0]
+            heights=c.base_mm+lsmr(A,b,**c.solver["lsmr"])[0]
         else:
             if np.array_equal(xy,old[0]):
                 heights=np.array(old[1],copy=True)
@@ -126,23 +126,21 @@ def optimize(mapping,gray,c,out,initial=None,mesh_override=None,mesh_factory=Non
                 return v,np.asarray(g).copy()
             # Optax Adam warm start, followed by quasi-Newton convergence.
             if not image:
-                optimizer=optax.adam(0.002)
+                optimizer=optax.adam(**{key:value for key,value in c.solver["adam"].items() if key!="steps"})
                 zj=jnp.asarray(z);state=optimizer.init(zj)
                 @jax.jit
                 def adam_step(zj,state):
                     value,gradient=vg(zj)
                     updates,state=optimizer.update(gradient,state,zj)
                     return jnp.clip(optax.apply_updates(zj,updates),c.min_thickness_mm,c.max_thickness_mm),state
-                for _ in range(20): zj,state=adam_step(zj,state)
+                for _ in range(c.solver["adam"]["steps"]): zj,state=adam_step(zj,state)
                 z=np.asarray(zj)
             result=minimize(fun,z,jac=True,method='L-BFGS-B',bounds=[(c.min_thickness_mm,c.max_thickness_mm)]*len(z),
-                            options=dict(maxiter=steps,maxls=35,ftol=1e-12,gtol=1e-7,maxcor=20))
+                            options=dict(c.solver["lbfgsb"],maxiter=steps))
             logging.info('optimizer grid=%s image=%s: %s; loss=%.12g',n,image,result.message,result.fun)
             return result.x
         logging.info('Mesh grid=%s: %s vertices / %s faces',n,len(xy),len(f))
         if c.fit_iterations: heights=run(heights,False,c.fit_iterations)
         if c.image_iterations: heights=run(heights,True,c.image_iterations)
         old=(xy,heights,f)
-        np.savez_compressed(out/f'surface_{n}.npz',xy=xy,faces=f,boundary=boundary,z=heights)
-    np.savetxt(out/'loss.csv',history,delimiter=',',header='level,image_phase,evaluation,loss')
     return xy,f,boundary,heights,np.asarray(history)

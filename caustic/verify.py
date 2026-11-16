@@ -48,8 +48,10 @@ def trace(xy,f,z,gray,c,out,source_domain=None):
     def samples():
         for start in range(0,total,2**18):
             yield engine.random(min(2**18,total-start))
-    workers=min(int(os.environ.get('CAUSTIC_THREADS',os.cpu_count() or 1)),max(1,total//(2**18)))
+    requested=os.environ.get('CAUSTIC_THREADS')
+    workers=min(int(requested),max(1,total//(2**18))) if requested else None
     with ThreadPoolExecutor(max_workers=workers) as pool:
+        workers=min(pool._max_workers,max(1,total//(2**18)))
         for batch_index,(st,image,fresnel) in enumerate(pool.map(batch,samples(),buffersize=workers),start=1):
             for k,vv in st.items():stats[k]+=vv
             counts+=image;physical+=fresnel
@@ -71,10 +73,7 @@ def trace(xy,f,z,gray,c,out,source_domain=None):
                  bright_mean_dark_mean_ratio=float(counts[bright].mean()/max(counts[dark].mean(),1e-20)) if dark.any() else None,
                  min_snell_discriminant=float(q.min()),max_surface_slope=float(np.max(np.linalg.norm(normal[:,:2],axis=1)/normal[:,2])),
                  flux_accounting_error=float(abs(sum(stats[k] for k in ['aperture_miss','tir','backward','outside_screen','captured'])-total)/total))
-    np.savez_compressed(out/'raytrace.npz',irradiance=counts,physical_irradiance=physical,target=target)
     scale=target.max()
-    save_gray(out/'simulated.png',counts/scale);save_gray(out/'target.png',gray/gray.max())
-    save_gray(out/'error.png',abs(counts-target)/scale)
     stats['display_saturation_fraction']=float(np.mean(counts>scale))
     # Native-resolution metrics above; coarse comparison reported separately.
     return stats,counts,target

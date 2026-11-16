@@ -10,11 +10,8 @@ def export(xy,f,boundary,z,c,out):
     mesh.fix_normals()
     if not mesh.is_watertight or not mesh.is_winding_consistent or mesh.volume<=0: raise RuntimeError('Invalid closed solid')
     if z.min()<c.min_thickness_mm-1e-8: raise RuntimeError('Thin lens')
-    mesh.export(out/'lens.stl');mesh.export(out/'lens.obj')
-    if c.ascii_stl:
-        # ASCII STL retains float64 coordinates, useful for the tiny height changes
-        # introduced by thin-line refinement. Binary STL stores float32 vertices.
-        mesh.export(out/'lens_precision.stl',file_type='stl_ascii')
+    # Single STL; preserve high precision when ascii_stl is enabled.
+    mesh.export(out/'lens.stl',file_type='stl_ascii' if c.ascii_stl else 'stl')
     reread=trimesh.load_mesh(out/'lens.stl')
     if not reread.is_watertight: raise RuntimeError('STL round-trip failed')
     return dict(watertight=bool(mesh.is_watertight),winding_consistent=bool(mesh.is_winding_consistent),
