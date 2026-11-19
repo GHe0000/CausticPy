@@ -5,27 +5,23 @@ from scipy.spatial import Delaunay
 from scipy.stats import qmc
 from skimage.morphology import skeletonize
 from scipy.ndimage import distance_transform_edt
-from .optics import numpy_refract
-from .target import dimensions,resize,save_gray
-def trace(xy,f,z,gray,c,out,source_domain=None):
+from common.projection import refract, screen_hits, screen_pixels
+from .target import dimensions
+def trace(xy,f,z,gray,c,source_domain):
     w,h=dimensions(gray,c);ny,nx=gray.shape
     tri=Delaunay(xy)
     lookup={tuple(sorted(face)):i for i,face in enumerate(f)}
     ids=np.array([lookup.get(tuple(sorted(face)),-1) for face in tri.simplices])
     v=np.c_[xy,z][f];normal=np.cross(v[:,1]-v[:,0],v[:,2]-v[:,0]);normal/=np.linalg.norm(normal,axis=1,keepdims=True)
-    d,q,trans=numpy_refract(normal,c.n_lens,c.n_air)
+    d,q,trans=refract(normal,c.n_lens,c.n_air)
     counts=np.zeros((ny,nx));physical=np.zeros_like(counts)
-    total=2**c.trace_power;engine=qmc.Sobol(3 if source_domain is not None else 2,scramble=True,seed=c.seed+1)
+    total=2**c.trace_power;engine=qmc.Sobol(3,scramble=True,seed=c.seed+1)
     stats=dict(incident_rays=total,aperture_miss=0,tir=0,backward=0,outside_screen=0,captured=0)
     # Equal incident flux per Sobol disk sample. No target correspondence is consulted here.
     # Initialize SciPy's lazily constructed point-location cache before sharing read-only data.
     tri.find_simplex(xy[:1])
     def batch(u):
-        if source_domain is None:
-            r=c.diameter_mm/2*np.sqrt(u[:,0]);a=2*np.pi*u[:,1]
-            p=r[:,None]*np.c_[np.cos(a),np.sin(a)]
-        else:
-            p=source_domain.sample(u)
+        p=source_domain.sample(u)
         s=tri.find_simplex(p);valid=(s>=0)&(ids[np.maximum(s,0)]>=0)
         st=dict(aperture_miss=int((~valid).sum()))
         p=p[valid];s=s[valid];fi=ids[s]
@@ -34,8 +30,8 @@ def trace(xy,f,z,gray,c,out,source_domain=None):
         hitz=(z[tri.simplices[s]]*bary).sum(axis=1)
         ok=(q[fi]>0)&(d[fi,2]>0)
         st['tir']=int((q[fi]<=0).sum());st['backward']=int(((q[fi]>0)&(d[fi,2]<=0)).sum())
-        hit=p+(c.screen_z_mm-hitz)[:,None]*d[fi,:2]/np.maximum(d[fi,2,None],1e-12)
-        ix=np.floor((hit[:,0]/w+.5)*nx).astype(int);iy=np.floor((.5-hit[:,1]/h)*ny).astype(int)
+        hits=screen_hits(p,hitz,d[fi],c.screen_z_mm,min_dz=1e-12)
+        iy,ix=screen_pixels(hits,w,h,gray.shape)
         inside=ok&(ix>=0)&(ix<nx)&(iy>=0)&(iy<ny)
         st['outside_screen']=int((ok&~inside).sum());st['captured']=int(inside.sum())
         pixel=iy[inside]*nx+ix[inside]

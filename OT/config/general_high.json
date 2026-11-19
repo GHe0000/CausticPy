@@ -1,6 +1,6 @@
 {
-  "image": "../examples/target_square.png",
-  "mask": "../examples/mask_circle.png",
+  "image": "../../examples/target_square.png",
+  "mask": "../../examples/mask_circle.png",
   "out": "../results/general_high",
   "refractive_index": 1.5,
   "air_index": 1,

@@ -4,22 +4,10 @@ import logging
 from scipy.interpolate import LinearNDInterpolator,NearestNDInterpolator
 from . import backend
 import sdot
-def solve(gray,c,out,warm=None,source_domain=None):
-    from .target import resize,dimensions
-    if source_domain is not None:
-        seeds=source_domain.seeds(c.ot_sites,c.seed)
-        source=source_domain.sdot_distribution()
-    else:
-        # Equal-area spiral seeds cover a disk; capacities are actual clipped Voronoi areas.
-        i=np.arange(c.ot_sites);r=c.diameter_mm/2*np.sqrt((i+.5)/c.ot_sites)
-        phi=i*np.pi*(3-np.sqrt(5))
-        seeds=np.c_[r*np.cos(phi),r*np.sin(phi)]
-        a=np.arange(c.boundary_segments)*2*np.pi/c.boundary_segments
-        dirs=np.c_[np.cos(a),np.sin(a)]
-        # Inscribed regular polygon, matching the exported aperture boundary.
-        off=np.full(len(a),c.diameter_mm/2*np.cos(np.pi/c.boundary_segments))
-        dirs=np.c_[np.cos(a+np.pi/c.boundary_segments),np.sin(a+np.pi/c.boundary_segments)]
-        source=sdot.Polytope(dirs,off)
+def solve(gray, c, source_domain):
+    from .target import resize, dimensions
+    seeds = source_domain.seeds(c.ot_sites, c.seed)
+    source = source_domain.sdot_distribution()
     pd=sdot.PowerDiagram(seeds,distribution=source,kernel_dtype='FP64')
     masses=np.asarray(pd.measures);masses=masses/masses.sum()
     src=np.c_[np.asarray(pd.moment(0)),np.asarray(pd.moment(1))]/masses[:,None]
@@ -29,9 +17,9 @@ def solve(gray,c,out,warm=None,source_domain=None):
     logging.info('SDOT solve: %s sites, raster %s',len(seeds),reduced.shape)
     # Explicit density homotopy supplies an admissible start for a disconnected target.
     # Final stage is EXACTLY the original raster, with zero dark density.
-    weights0=warm;stages=[]
+    weights0=None;stages=[]
     mean=reduced.mean()
-    for alpha in ([1.] if warm is not None else c.solver["sdot"]["density_stages"]):
+    for alpha in c.solver["sdot"]["density_stages"]:
         logging.info("SDOT solving density stage alpha=%g, sites=%s",alpha,len(seeds))
         values=alpha*reduced+(1-alpha)*mean
         density=sdot.Image(np.ascontiguousarray(values[::-1].T),origin=np.array([-w/2,-h/2]),frame=np.diag([w,h]))
@@ -45,8 +33,8 @@ def solve(gray,c,out,warm=None,source_domain=None):
     stats=dict(sol.stats);stats['density_continuation']=stages
     stats.update(capacity_L1=float(abs(actual-masses).sum()),capacity_max_relative=float(np.max(abs(actual-masses)/masses)),
                  source_mass=float(masses.sum()),target_mass=float(actual.sum()),black_floor=0.,
-                 source_polygon_area_ratio=None if source_domain is not None else float(c.boundary_segments*np.sin(2*np.pi/c.boundary_segments)/(2*np.pi)),
-                 source_mask_area_mm2=source_domain.area if source_domain is not None else None,
+                 source_polygon_area_ratio=None,
+                 source_mask_area_mm2=source_domain.area,
                  mapping='reverse SDOT barycentric correspondence; piecewise linear interpolation')
     if not np.isfinite(dst).all(): raise RuntimeError('Invalid transport barycenters')
     return Correspondence(src,dst),stats

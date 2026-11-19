@@ -1,0 +1,42 @@
+{
+  "input_stl": "../../../RUN/results/circle60_full/lens_precision.stl",
+  "image": "../../examples/target_square.png",
+  "out": "../results/curvature_fit_gradient_0",
+  "runtime": {
+    "jax_platforms": "cpu",
+    "threads": 0,
+    "cpu_devices": 4
+  },
+  "optics": {
+    "refractive_index": 1.5,
+    "air_index": 1,
+    "screen_z_mm": 100,
+    "target_size_mm": 50,
+    "min_thickness_mm": 2,
+    "max_thickness_mm": 22
+  },
+  "optimization": {
+    "iterations": 20,
+    "initial_step": 0.1,
+    "maxcor": 10,
+    "maxls": 30,
+    "gtol": 1e-05,
+    "ftol": 1e-12,
+    "raster_chunk": 8192,
+    "nu_inverse_mm": 0.0001,
+    "eps1_min_area_fraction": 0.01,
+    "eps2_min_area_fraction": 0.1,
+    "gamma": 1
+  },
+  "validation": {
+    "trace_power": 24,
+    "seed": 42
+  },
+  "center_target": true,
+  "loss_weights": {
+    "image": 100,
+    "boundary": 0.001,
+    "smooth": 20,
+    "barrier": 1e-08
+  }
+}

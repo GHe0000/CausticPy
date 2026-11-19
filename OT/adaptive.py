@@ -5,7 +5,7 @@ from scipy.spatial import Delaunay
 from scipy.interpolate import LinearNDInterpolator
 from scipy.ndimage import distance_transform_edt,map_coordinates
 from skimage.morphology import skeletonize
-from .optics import numpy_refract
+from common.projection import refract as numpy_refract
 from .target import dimensions
 def refine_mesh(xy,f,z,boundary,gray,c,rounds):
     support=gray>.05

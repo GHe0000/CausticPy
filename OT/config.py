@@ -1,5 +1,4 @@
-from dataclasses import dataclass,asdict,field
-import json
+from dataclasses import dataclass,field
 @dataclass
 class Config:
     center_target: bool = True
@@ -71,9 +70,3 @@ class Config:
         if ad['learning_rate']<=0 or not 0<=ad['b1']<1 or not 0<=ad['b2']<1 or ad['eps']<=0 or ad['eps_root']<0 or type(ad['nesterov']) is not bool:
             raise ValueError('Invalid Adam parameters')
         if lb['ftol']<0 or lb['gtol']<0:raise ValueError('Invalid L-BFGS-B tolerances')
-    @classmethod
-    def load(cls,path):
-        c=cls(**json.loads(open(path,encoding='utf-8').read())) if path else cls()
-        c.validate()
-        return c
-    def save(self,p): p.write_text(json.dumps(asdict(self),indent=2),encoding='utf-8')

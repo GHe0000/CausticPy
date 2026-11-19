@@ -1,6 +1,6 @@
 {
-  "image": "../examples/target_square.png",
-  "mask": "../examples/mask_convex.png",
+  "image": "../../examples/target_square.png",
+  "mask": "../../examples/mask_convex.png",
   "out": "../results/general_quick",
   "refractive_index": 1.45,
   "air_index": 1,

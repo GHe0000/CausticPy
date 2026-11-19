@@ -8,7 +8,7 @@ def plots(xy,f,z,mapping,history,I,T,out,c):
     for a,data,title in zip(ax,[T,I,abs(I-T)],['Target','Independent facet raytrace','Absolute error']):
         a.imshow(data,vmin=0,vmax=vmax,cmap='gray',origin='upper');a.set_title(title);a.axis('off')
     fig.tight_layout();fig.savefig(out/'comparison.png',dpi=180);plt.close(fig)
-    fig,ax=plt.subplots(figsize=(7,6));im=ax.tripcolor(xy[:,0],xy[:,1],f,z,shading='gouraud');fig.colorbar(im,ax=ax,label='z [mm]')
+    fig,ax=plt.subplots(figsize=(7,6));im=ax.tripcolor(xy[:,0],xy[:,1],f,z,shading='gouraud',cmap='viridis');fig.colorbar(im,ax=ax,label='z [mm]')
     ax.set_aspect('equal');ax.set_title('Freeform exit surface; entrance z=0');fig.savefig(out/'height.png',dpi=180);plt.close(fig)
     fig,ax=plt.subplots();ax.semilogy(history[:,3]);ax.set_xlabel('Objective evaluations (phase scales differ)');ax.set_ylabel('Loss')
     fig.savefig(out/'loss.png',dpi=150);plt.close(fig)

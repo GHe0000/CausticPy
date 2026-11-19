@@ -2,12 +2,14 @@
 from pathlib import Path
 import argparse,contextlib,hashlib,json,logging,os,shutil,sys,time,traceback
 
-from runtime import resolve_runtime,validate_runtime,configure_runtime
+sys.dont_write_bytecode = True
+
+from common.runtime import resolve_runtime,validate_runtime,configure_runtime
 
 ROOT=Path(__file__).resolve().parent
 
 def load_run_config(path=None):
-    path=Path(path).resolve() if path else ROOT/'configs/general_high.json'
+    path=Path(path).resolve() if path else ROOT/'OT/config/general_high.json'
     settings=json.loads(path.read_text(encoding='utf-8'))
     keys={'image','mask','out','refractive_index','air_index','L_mm','distance_mm','target_size_mm',
           'mesh_n','center_target','mask_threshold','coarse_mesh_levels','optics','stages','solver','runtime'}
@@ -35,7 +37,7 @@ def validate_settings(s):
         raise ValueError('coarse_mesh_levels must be a list of integers >=8; [] uses only mesh_n')
 
 def optical_config(s,pixels):
-    from caustic.config import Config
+    from OT.config import Config
     values=dict(s['optics'])
     values['solver']=s['solver']
     controlled={'diameter_mm','n_lens','n_air','screen_z_mm','target_width_mm','center_target','mesh_levels'}
@@ -58,12 +60,8 @@ def write(path,data):
 @contextlib.contextmanager
 def log_stage(name):
     started=time.monotonic();logging.info('%s | START',name)
-    try:
-        yield
-    except BaseException:
-        logging.exception('%s | FAILED',name)
-        raise
-    else:logging.info('%s | DONE (%.1fs)',name,time.monotonic()-started)
+    yield
+    logging.info('%s | DONE (%.1fs)',name,time.monotonic()-started)
 
 def no_total_internal_reflection(metrics):
     # Check both traced rays and every facet's Snell discriminant.
@@ -77,15 +75,15 @@ def select_best(candidates):
 
 def run(settings):
     from dataclasses import asdict,replace
-    from caustic import backend
-    from caustic.target import load,center_pattern
-    from caustic.domain import MaskDomain
-    from caustic.transport import solve
-    from caustic.optimize import optimize
-    from caustic.adaptive import refine_mesh
-    from caustic.verify import trace
-    from caustic.export import export
-    from caustic.report import plots
+    from OT import backend
+    from common.target import load_gray, center_pattern
+    from OT.domain import MaskDomain
+    from OT.transport import solve
+    from OT.optimize import optimize
+    from OT.adaptive import refine_mesh
+    from OT.verify import trace
+    from OT.export import export
+    from OT.report import plots
 
     out=Path(settings['out']).resolve()
     out.mkdir(parents=True,exist_ok=False)
@@ -99,8 +97,7 @@ def run(settings):
                      os.environ.get('CAUSTIC_THREADS','system default'),backend.jax.config.jax_enable_x64)
         logging.info(f'Physics: flat entrance z=0; screen z={settings["distance_mm"]:g} mm; n={settings["refractive_index"]:g}/{settings["air_index"]:g}; mask L={settings["L_mm"]:g} mm')
         with log_stage('[1] Square input validation and convex mask'):
-            raw=load(settings['image'])
-            if raw.shape[0]!=raw.shape[1] or raw.shape[0]<2:raise ValueError(f'Target must be a square PNG of at least 2x2, got {raw.shape}; no implicit resize/padding')
+            raw=load_gray(settings['image'])
             gray,shift=center_pattern(raw) if settings['center_target'] else (raw,(0,0))
             domain=MaskDomain(settings['mask'],settings['L_mm'],settings['mask_threshold'])
             config=optical_config(settings,gray.shape[1])
@@ -110,7 +107,7 @@ def run(settings):
                             illumination='uniform parallel +z light restricted to the convex lens aperture')
             logging.info(f'Input {gray.shape}; center shift {shift}; mask area {domain.area:.6f} mm^2; grid spacing L/n={settings["L_mm"]/settings["mesh_n"]:.6f} mm')
         with log_stage('[2] SDOT source capacities and target power diagram'):
-            mapping,ot=solve(gray,config,out,source_domain=domain)
+            mapping,ot=solve(gray,config,domain)
             logging.info(f"OT mass L1 residual={ot['capacity_L1']:.3e}; source mass={ot['source_mass']:.15g}; target mass={ot['target_mass']:.15g}")
         base=out/'base';base.mkdir()
         def factory(c,n):
@@ -119,13 +116,13 @@ def run(settings):
                 logging.info(f'Mesh: {len(mesh[0]):,} vertices / {len(mesh[1]):,} triangles')
                 return mesh
         with log_stage('[3] Multi-resolution JAX/Optax surface design'):
-            xy,f,b,z,history=optimize(mapping,gray,config,base,mesh_factory=factory)
+            xy,f,b,z,history=optimize(mapping,gray,config,mesh_factory=factory)
         def evaluate(folder,c,state,hist,label,refinement=None):
             xx,ff,bb,zz=state
             with log_stage(f'{label}: CNC solid export'):
                 mesh=export(xx,ff,bb,zz,c,folder);mesh['body_count']=1
             with log_stage(f'{label}: independent forward raytrace ({2**c.trace_power:,} rays)'):
-                metrics,I,T=trace(xx,ff,zz,gray,c,folder,source_domain=domain)
+                metrics,I,T=trace(xx,ff,zz,gray,c,domain)
             with log_stage(f'{label}: save four diagnostic figures'):
                 plots(xx,ff,zz,mapping,hist,I,T,folder,c)
             row=dict(stage=label,pipeline_complete=True,config=asdict(c),metrics=metrics,mesh=mesh,
@@ -151,7 +148,7 @@ def run(settings):
                     xy,f,b,z,_,record=refine_mesh(xy,f,z,b,gray,c,rounds)
                     logging.info(f'After local refinement: {len(xy):,} vertices / {len(f):,} triangles')
                 from scipy.spatial import Delaunay
-                xy,f,b,z,history=optimize(mapping,gray,c,folder,initial=(xy,z,f),mesh_override=(xy,f,b,Delaunay(xy)))
+                xy,f,b,z,history=optimize(mapping,gray,c,initial=(xy,z,f),mesh_override=(xy,f,b,Delaunay(xy)))
             evaluate(folder,c,(xy,f,b,z),history,name,record)
         selected=select_best(candidates)
         if selected is not None:
@@ -177,31 +174,19 @@ def run(settings):
         raise
 
 def main():
-    p=argparse.ArgumentParser(description='Convex mask + square PNG -> lens STL and result images',
-                              epilog='One complete run JSON. CLI values override its parameters.')
-    p.add_argument('--config',help='Complete run JSON (default: configs/general_high.json beside the script)')
-    p.add_argument('--image','--target',dest='image')
-    p.add_argument('--mask')
-    p.add_argument('--out')
-    p.add_argument('--n','--refractive-index',dest='refractive_index',type=float)
-    p.add_argument('--n-air',dest='air_index',type=float)
-    p.add_argument('--L','--length',dest='L_mm',type=float)
-    p.add_argument('--distance','--focal-length',dest='distance_mm',type=float)
-    p.add_argument('--target-size',dest='target_size_mm',type=float)
-    p.add_argument('--grid','--mesh-n',dest='mesh_n',type=int)
-    p.add_argument('--threads',type=int)
-    p.add_argument('--no-center',action='store_true')
-    args=p.parse_args()
-    settings=load_run_config(args.config)
-    for key in ['image','mask','out','refractive_index','air_index','L_mm','distance_mm','target_size_mm','mesh_n']:
-        if getattr(args,key) is not None:settings[key]=getattr(args,key)
-    if args.threads is not None:settings['runtime']['threads']=args.threads
-    if args.no_center:settings['center_target']=False
-    if not all(settings[key] for key in ['image','mask','out']):p.error('--image, --mask and --out are required, directly or in JSON')
+    parser = argparse.ArgumentParser(description='Design a lens from a convex mask and target PNG using SDOT.')
+    parser.add_argument('--config', type=Path, help='Run JSON (default: OT/config/general_high.json)')
+    parser.add_argument('--out', type=Path, help='Write to a new result directory')
+    args = parser.parse_args()
+    settings = load_run_config(args.config)
+    if args.out is not None:
+        settings['out'] = str(args.out.resolve())
+    if not all(settings[key] for key in ['image', 'mask', 'out']):
+        parser.error('image, mask and out are required in the run configuration')
     validate_settings(settings)
-
-    configure_runtime(settings.get('runtime',{}))
+    configure_runtime(settings['runtime'])
     run(settings)
+
 
 if __name__=='__main__':
     main()

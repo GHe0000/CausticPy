@@ -18,8 +18,7 @@ def splat(hits,weights,w,h,nx,ny):
         val=weights*(t[:,0] if dx else 1-t[:,0])*(t[:,1] if dy else 1-t[:,1])*ok
         img=img.at[jnp.clip(ij[:,1],0,ny-1),jnp.clip(ij[:,0],0,nx-1)].add(val)
     return img
-def optimize(mapping,gray,c,out,initial=None,mesh_override=None,mesh_factory=None):
-    from .target import save_gray
+def optimize(mapping,gray,c,initial=None,mesh_override=None,mesh_factory=None):
     history=[];old=initial
     w,h=dimensions(gray,c)
     for level,n in enumerate(c.mesh_levels):
@@ -65,7 +64,7 @@ def optimize(mapping,gray,c,out,initial=None,mesh_override=None,mesh_factory=Non
         fine_ids=np.empty(0,dtype=int)
         if c.image_resolution>512 and c.fine_quadrature>base_samples and thin.any():
             from scipy.ndimage import map_coordinates
-            from .optics import numpy_refract
+            from common.projection import refract as numpy_refract
             slopes0=np.c_[gx@heights,gy@heights]
             normals=np.c_[-slopes0,np.ones(len(f))];normals/=np.linalg.norm(normals,axis=1,keepdims=True)
             dirs0,_,_=numpy_refract(normals,c.n_lens,c.n_air)
@@ -143,4 +142,4 @@ def optimize(mapping,gray,c,out,initial=None,mesh_override=None,mesh_factory=Non
         if c.fit_iterations: heights=run(heights,False,c.fit_iterations)
         if c.image_iterations: heights=run(heights,True,c.image_iterations)
         old=(xy,heights,f)
-    return xy,f,boundary,heights,np.asarray(history)
+    return xy,f,boundary,heights,np.asarray(history).reshape(-1,4)

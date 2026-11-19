@@ -3,7 +3,7 @@ from pathlib import Path
 import os,shutil
 
 _DLL_HANDLES=[]
-_KEYS={'jax_platforms','jax_enable_x64','threads','compiler','path_dirs','dll_dirs','xla_flags'}
+_KEYS={'jax_platforms','jax_enable_x64','threads','compiler','path_dirs','dll_dirs','xla_flags','cpu_devices'}
 
 def validate_runtime(options):
     if not isinstance(options,dict):raise ValueError('runtime must be an object')
@@ -13,8 +13,10 @@ def validate_runtime(options):
         raise ValueError('runtime.threads must be an integer >=0; omit for library defaults')
     if 'jax_enable_x64' in options and type(options['jax_enable_x64']) is not bool:
         raise ValueError('runtime.jax_enable_x64 must be true or false')
+    if 'cpu_devices' in options and (type(options['cpu_devices']) is not int or options['cpu_devices'] < 1):
+        raise ValueError('runtime.cpu_devices must be a positive integer')
     for key,value in options.items():
-        if key in ['threads','jax_enable_x64']:continue
+        if key in ['threads','jax_enable_x64','cpu_devices']:continue
         if key in ['path_dirs','dll_dirs']:
             if not isinstance(value,list) or any(not isinstance(v,str) or not v for v in value):
                 raise ValueError('runtime.'+key+' must be a list of nonempty paths')
@@ -54,6 +56,7 @@ def configure_runtime(options):
         if compiler is None:raise ValueError('runtime.compiler executable not found: '+options['compiler'])
         os.environ['CXX']=compiler
     if 'jax_platforms' in options:os.environ['JAX_PLATFORMS']=options['jax_platforms']
+    if 'cpu_devices' in options:os.environ['JAX_NUM_CPU_DEVICES']=str(options['cpu_devices'])
     os.environ['JAX_ENABLE_X64']=str(options.get('jax_enable_x64',True)).lower()
     count=None
     if 'threads' in options:
