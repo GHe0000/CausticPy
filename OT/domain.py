@@ -1,4 +1,4 @@
-"""Convex lens footprint from a square binary mask, using only NumPy/SciPy."""
+"""Convex lens aperture from a binary mask."""
 from pathlib import Path
 import numpy as np
 from PIL import Image
@@ -61,9 +61,9 @@ class MaskDomain:
             ring.append(a+np.arange(count)[:,None]/count*(b-a))
         ring=np.vstack(ring)
         from .geometry import clean_convex_mesh
-        xy,faces,boundary,tri,_=clean_convex_mesh(np.vstack([inside,ring]))
+        xy,faces,boundary,_,_=clean_convex_mesh(np.vstack([inside,ring]))
         p=xy[faces]
         a=p[:,1]-p[:,0];b=p[:,2]-p[:,0]
         area=abs(a[:,0]*b[:,1]-a[:,1]*b[:,0]).sum()/2
         if not np.isclose(area,self.area,rtol=1e-9,atol=1e-10):raise RuntimeError('Mask mesh area mismatch')
-        return xy,faces,boundary,tri
+        return xy,faces,boundary

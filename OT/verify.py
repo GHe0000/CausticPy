@@ -1,4 +1,4 @@
-"""Independent numpy ray tracer: uniform incident rays hit actual exported planar facets."""
+"""Independent Sobol facet ray tracer."""
 import numpy as np
 import logging
 from scipy.spatial import Delaunay
@@ -6,19 +6,18 @@ from scipy.stats import qmc
 from skimage.morphology import skeletonize
 from scipy.ndimage import distance_transform_edt
 from common.projection import refract, screen_hits, screen_pixels
-from .target import dimensions
+from common.target import target_dimensions
 def trace(xy,f,z,gray,c,source_domain):
-    w,h=dimensions(gray,c);ny,nx=gray.shape
+    w,h=target_dimensions(gray,c.target_size_mm);ny,nx=gray.shape
     tri=Delaunay(xy)
     lookup={tuple(sorted(face)):i for i,face in enumerate(f)}
     ids=np.array([lookup.get(tuple(sorted(face)),-1) for face in tri.simplices])
     v=np.c_[xy,z][f];normal=np.cross(v[:,1]-v[:,0],v[:,2]-v[:,0]);normal/=np.linalg.norm(normal,axis=1,keepdims=True)
-    d,q,trans=refract(normal,c.n_lens,c.n_air)
+    d,q,trans=refract(normal,c.refractive_index,c.air_index)
     counts=np.zeros((ny,nx));physical=np.zeros_like(counts)
     total=2**c.trace_power;engine=qmc.Sobol(3,scramble=True,seed=c.seed+1)
     stats=dict(incident_rays=total,aperture_miss=0,tir=0,backward=0,outside_screen=0,captured=0)
-    # Equal incident flux per Sobol disk sample. No target correspondence is consulted here.
-    # Initialize SciPy's lazily constructed point-location cache before sharing read-only data.
+    # Warm SciPy point-location cache before multithreaded reads.
     tri.find_simplex(xy[:1])
     def batch(u):
         p=source_domain.sample(u)
@@ -30,13 +29,13 @@ def trace(xy,f,z,gray,c,source_domain):
         hitz=(z[tri.simplices[s]]*bary).sum(axis=1)
         ok=(q[fi]>0)&(d[fi,2]>0)
         st['tir']=int((q[fi]<=0).sum());st['backward']=int(((q[fi]>0)&(d[fi,2]<=0)).sum())
-        hits=screen_hits(p,hitz,d[fi],c.screen_z_mm,min_dz=1e-12)
+        hits=screen_hits(p,hitz,d[fi],c.distance_mm,min_dz=1e-12)
         iy,ix=screen_pixels(hits,w,h,gray.shape)
         inside=ok&(ix>=0)&(ix<nx)&(iy>=0)&(iy<ny)
         st['outside_screen']=int((ok&~inside).sum());st['captured']=int(inside.sum())
         pixel=iy[inside]*nx+ix[inside]
         image=np.bincount(pixel,minlength=nx*ny).reshape(ny,nx)/total
-        entrance=1-((c.n_lens-c.n_air)/(c.n_lens+c.n_air))**2
+        entrance=1-((c.refractive_index-c.air_index)/(c.refractive_index+c.air_index))**2
         fresnel=np.bincount(pixel,weights=entrance*trans[fi[inside]],minlength=nx*ny).reshape(ny,nx)/total
         return st,image,fresnel
     import os
@@ -71,5 +70,4 @@ def trace(xy,f,z,gray,c,source_domain):
                  flux_accounting_error=float(abs(sum(stats[k] for k in ['aperture_miss','tir','backward','outside_screen','captured'])-total)/total))
     scale=target.max()
     stats['display_saturation_fraction']=float(np.mean(counts>scale))
-    # Native-resolution metrics above; coarse comparison reported separately.
     return stats,counts,target

@@ -1,32 +1,79 @@
 # CausticPy
 
-OT 和 DP 是两个独立的终端程序。运行前准备 Python 3.14 和 requirements.txt 中的依赖。
+基于最优传输和可微物理的焦散透镜生成与优化工具，基于 Python + JAX 实现. 
 
-```text
-CausticPy/
-├── OT/               SDOT、凸掩模网格、曲面拟合、细化与评估
-│   └── config/       四份独立 JSON
-├── DP/               几何、曲率初始化、可微面积渲染、损失、L-BFGS 与报告
-│   └── config/       default.json
-├── common/           NumPy 出射折射与投影、目标图、STL、运行环境
-├── examples/         可共用的示例图像
-├── run_OT.py
-└── run_DP.py
-```
+项目包含下面两个部分：
 
-在 CausticPy 目录运行以下 PowerShell 命令。已有激活的 caustic-jax 环境时，也可直接从 python 开始运行。
+- OT（最优输运，`run_OT.py`）：从目标图与掩模出发，从零生成焦散透镜模型
+（参考：Yuliy Schwartzburg, Romain Testuz, Andrea Tagliasacchi, Mark Pauly. High-contrast Computational Caustic Design. ACM Transactions on Graphics (SIGGRAPH 2014).）
+
+
+- DP（可微物理优化，`run_DP.py`）：读取已有 STL 透镜和目标图，通过可微物理的方式进行优化
+（参考：Yuou Sun, Bailin Deng, Juyong Zhang. End-to-end Surface Optimization for Light Control. ACM Transactions on Graphics (arXiv:2408.13117).）
+
+
+## 环境准备
+
+1. Python 3.14 + 可用 C++ 编译器以及 Ninja
+
+2. 安装对应库
 
 ```powershell
-mamba run -n caustic-jax python -u .\run_OT.py --config .\OT\config\general_quick.json --out .\OT\results\quick_01
-mamba run -n caustic-jax python -u .\run_DP.py --config .\DP\config\default.json --out .\DP\results\dp_01
+pip install -r requirements.txt
 ```
 
-OT 读取目标 PNG 和凸掩模，完成半离散最优输运、曲面优化、独立追迹和导出。默认读取 general_high.json。general_circle_full.json 提供 60 mm 圆形口径、100 mm 屏幕距离和 600 网格设置。后续细化阶段可以用 stages=[] 关闭。候选按独立追迹的相对 RMSE 排序，只选择无全反射的候选。
+## 配置说明
 
-DP 读取用户指定的初始 STL 和目标 PNG。默认 input_stl 指向 JAX3/RUN 已有的历史模型，可在 DP/config/default.json 中换成自己的 STL。曲率辅助变量由初始曲面拟合，损失公式在 DP/loss.py，权重在 JSON 中。DP 可用 --iterations 覆盖迭代预算。
+在 `OT/config` 和 `DP/config` 中，有一些预设的 json 配置文件，运行前需要复制一份进行修改.
 
-两个入口各自读取配置、运行和写入结果。common/projection.py 提供前向几何公式，两个算法各自保留训练渲染和独立追迹采样方式。长度单位为 mm，屏幕距离从平面入口 z=0 测量。JSON 相对路径以配置文件目录为基准，命令行相对路径以当前目录为基准。
 
-结果目录必须是新目录。成功的根结果及 OT 的各个候选目录保存 lens.stl、height.png、comparison.png、loss.png、mapping.png 和 result.json。日志带时间戳，直接输出到终端。
+### OT 配置（`OT/config/*.json`）
 
-runtime 提供可选的设备、精度、线程、编译器和 DLL 路径配置。当前 OT 示例 JSON 明确设置了本机的编译器与 DLL 目录，迁移时可改为目标机路径，或删除这些字段并使用环境中的工具链。Loom 缓存仍由环境或库管理。参见 PORTABILITY.md。
+常用参数：
+
+- `image`：目标图像，必须是 1:1
+- `mask`：掩模，必须是 1:1，白色为透光区域，透光区域必须是凸的
+- `out`：默认输出目录（可被命令行 `--out` 覆盖）
+- `refractive_index` / `air_index`：透镜与空气折射率
+- `L_mm`：掩模对应边长
+- `distance_mm`：投影距离，以相对透镜平面计算
+- `target_size_mm`：目标图案对应宽度
+- `mesh_n`：最终网格密度
+- `coarse_mesh_levels`：细化过程，设为 `[]` 则只用 `mesh_n`
+- `optics`：基准/最小/最大厚度（`base_mm`、`min_thickness_mm`、`max_thickness_mm`）、SDOT 点数（`ot_sites`）、拟合与图像迭代次数、损失权重、独立光追光线数（`2**trace_power`）
+- `stages`：基础阶段之后的局部加密与精细优化阶段，设为 `[]` 可跳过细化
+
+### DP 配置（`DP/config/default.json`）
+
+常用参数：
+
+- `input_stl`：初始 STL 路径
+- `image`：目标图像，必须是 1:1
+- `out`：默认输出目录（可被命令行 `--out` 覆盖）
+- `optics`：物理参数（`refractive_index`、`air_index`、`screen_z_mm`、`target_size_mm`、`min_thickness_mm`、`max_thickness_mm`），需与初始 STL 一致
+- `optimization`：L-BFGS 优化参数，如最大迭代次数 `iterations`（可用 `--iterations` 覆盖）、光栅化分块大小 `raster_chunk`
+- `loss_weights`：各项损失权重（`image` 图像、`boundary` 越界、`smooth` 曲率平滑、`barrier` 防退化与防全反射）
+- `validation`：独立光线追迹参数（光线数 `2**trace_power` 与随机种子 `seed`）
+
+### 运行环境（`runtime`）
+
+`runtime` 为可选配置项，不填则沿用系统默认：
+
+- `jax_platforms`：计算后端（只测试过 CPU 计算，GPU 计算未测试过）
+- `threads`：线程数，填 `0` 表示使用全部逻辑 CPU 核心
+- `cpu_devices`：模拟的 JAX CPU 设备数（DP 用于并行光栅化）
+- `compiler` / `path_dirs` / `dll_dirs`：OT 使用的 C++ 编译器及依赖目录，可直接删除（改用系统默认工具链），Linux/macOS 请勿填写 dll_dirs.
+
+## 运行
+
+OT 生成模型：
+
+```bash
+python -u .\run_OT.py --config .\OT\config\general_high.json --out .\OT\results\high_01
+```
+
+DP 细化模型：
+
+```bash
+python -u .\run_DP.py --config .\DP\config\default.json --iterations 20 --out .\DP\results\dp_01
+```

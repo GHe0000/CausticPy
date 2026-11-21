@@ -1,22 +1,19 @@
-"""Paper-style reverse SDOT: source Voronoi capacities, target Laguerre barycenters."""
+"""Reverse SDOT solver and correspondence interpolator."""
 import numpy as np
 import logging
 from scipy.interpolate import LinearNDInterpolator,NearestNDInterpolator
-from . import backend
 import sdot
+from common.target import resize_gray, target_dimensions
 def solve(gray, c, source_domain):
-    from .target import resize, dimensions
     seeds = source_domain.seeds(c.ot_sites, c.seed)
     source = source_domain.sdot_distribution()
     pd=sdot.PowerDiagram(seeds,distribution=source,kernel_dtype='FP64')
     masses=np.asarray(pd.measures);masses=masses/masses.sum()
     src=np.c_[np.asarray(pd.moment(0)),np.asarray(pd.moment(1))]/masses[:,None]
-    reduced=resize(gray,c.ot_resolution)
-    w,h=dimensions(gray,c)
-    # SDOT axis 0 is x; PNG row 0 is +y. Flip and transpose explicitly.
+    reduced=resize_gray(gray,c.ot_resolution)
+    w,h=target_dimensions(gray,c.target_size_mm)
+    # SDOT axis 0 is x; PNG row 0 is +y.
     logging.info('SDOT solve: %s sites, raster %s',len(seeds),reduced.shape)
-    # Explicit density homotopy supplies an admissible start for a disconnected target.
-    # Final stage is EXACTLY the original raster, with zero dark density.
     weights0=None;stages=[]
     mean=reduced.mean()
     for alpha in c.solver["sdot"]["density_stages"]:

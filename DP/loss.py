@@ -1,4 +1,4 @@
-"""DP loss: image fit, screen boundary, surface regularization and barriers."""
+"""DP loss and surface regularizers."""
 
 import jax.numpy as jnp
 
@@ -23,7 +23,6 @@ def regularizers(g, weingarten, topo, nu, eps1, eps2):
     ids = topo['interior']
     lap = jnp.sum((xy[ids] - average[ids])**2)
     area = g['area']
-    # The inactive branch is finite, including exactly a == eps1.
     denom = jnp.where(area > eps1, area - eps1, 1.)
     barr_a = jnp.sum(jnp.where(area >= eps2, 0., jnp.where(area > eps1, ((eps2-eps1)/denom-1)**2, jnp.inf)))
     barr_t = jnp.sum(jnp.where(g['q'] > 0, 1 / g['q'], jnp.inf))

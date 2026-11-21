@@ -1,4 +1,4 @@
-"""Mesh adjacency, Snell refraction, feasibility and curvature initialization."""
+"""DP mesh topology, refraction geometry and curvature initialization."""
 
 import numpy as np
 import jax.numpy as jnp
@@ -37,7 +37,6 @@ def geometry(vertices, faces, eta, screen_z, aperture_area):
     e1 = u / jnp.linalg.norm(u, axis=1, keepdims=True)
     basis = jnp.stack([e1, jnp.cross(normal, e1)], axis=2)
     q = 1 + eta**2 * (normal[:, 2]**2 - 1)
-    # Invalid trials are rejected by the host before differentiation.
     direction = (jnp.sqrt(q) - eta * normal[:, 2])[:, None] * normal + jnp.array([0., 0., eta])
     hit = tri[..., :2] + (screen_z - tri[..., 2:]) * direction[:, None, :2] / direction[:, None, 2:]
     area = .5 * cross[:, 2]
@@ -84,7 +83,6 @@ def fit_weingarten(g,adjacent,chunk=8192):
         A[:,:,0,0]=d[:,:,0];A[:,:,0,2]=d[:,:,1]
         A[:,:,1,1]=d[:,:,1];A[:,:,1,2]=d[:,:,0]
         A=A.reshape(-1,6,3);rhs=b.reshape(-1,6)
-        # Per-face SVD: minimum-norm solution for boundary/rank-deficient faces.
         u,s,vh=np.linalg.svd(A,full_matrices=False)
         cutoff=1e-12*s[:,:1];keep=s>cutoff
         inv=np.divide(1.,s,out=np.zeros_like(s),where=keep)

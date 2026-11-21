@@ -1,1 +1,1 @@
-"""Raster semi-discrete transport and physical freeform lens design."""
+"""Semi-discrete optimal transport lens design."""

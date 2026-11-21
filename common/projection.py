@@ -1,10 +1,10 @@
-"""Forward geometry for rays travelling along +z from a flat entrance."""
+"""Forward +z refraction and screen projection."""
 
 import numpy as np
 
 
 def refract(normals, n_lens, n_air):
-    """Return exit directions, Snell discriminants, and exit Fresnel transmission."""
+    """Exit directions, Snell discriminants, and Fresnel transmission."""
     eta = n_lens / n_air
     cos_i = normals[:, 2]
     discriminant = 1 - eta**2 * (1 - cos_i**2)
@@ -23,7 +23,7 @@ def screen_hits(xy, z, directions, screen_z, *, min_dz=None):
 
 
 def screen_pixels(hits, width, height, shape):
-    """Convert centered screen coordinates in mm to PNG row/column indices."""
+    """Screen coordinates (mm) to PNG (row, col)."""
     rows, cols = shape
     col = np.floor((hits[:, 0] / width + .5) * cols).astype(int)
     row = np.floor((.5 - hits[:, 1] / height) * rows).astype(int)

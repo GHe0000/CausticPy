@@ -1,4 +1,4 @@
-"""Only four figures per result, headless Matplotlib."""
+"""DP figures and independent raytrace."""
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt

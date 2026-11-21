@@ -1,9 +1,4 @@
-"""Exact triangle/pixel overlap flux and a bounded-memory native JAX VJP.
-
-The intersection boundary consists of clipped triangle and rectangle segments.
-Green's theorem gives its area without variable-length polygon arrays. Binning
-is discrete host-side work; all overlap values and their derivatives use JAX.
-"""
+"""Exact triangle/pixel overlap rasterizer with custom JAX VJP."""
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -11,7 +6,7 @@ import numpy as np
 def cross(a,b):return a[...,0]*b[...,1]-a[...,1]*b[...,0]
 
 def pixel_overlap(tri):
-    """Intersection areas with [0,1]^2; batch (...,3,2), CCW triangles."""
+    """Overlap area with [0,1]^2 for CCW triangles (...,3,2)."""
     a=tri;b=jnp.roll(tri,-1,axis=-2);v=b-a
     parallel=jnp.abs(v)<1e-14;safe=jnp.where(parallel,1.,v)
     lower=-a/safe;upper=(1-a)/safe
@@ -20,7 +15,7 @@ def pixel_overlap(tri):
     t0=jnp.maximum(0.,jnp.max(enter,axis=-1));t1=jnp.minimum(1.,jnp.min(leave,axis=-1))
     valid=jnp.all((~parallel)|((a>=0)&(a<=1)),axis=-1)&(t1>t0)
     boundary=jnp.sum(jnp.where(valid,(t1-t0)*cross(a,v),0.),axis=-1)
-    # Bottom and left rectangle edges have zero cross product with the origin.
+    # Only top/right edges contribute to Green's theorem integral.
     starts=jnp.array([[1.,0.],[1.,1.]])
     directions=jnp.array([[0.,1.],[-1.,0.]])
     f0=cross(v[...,None,:,:],starts[:,None,:]-a[...,None,:,:])
@@ -28,7 +23,6 @@ def pixel_overlap(tri):
     parallel=jnp.abs(fd)<1e-14;safe=jnp.where(parallel,1.,fd);root=-f0/safe
     enter=jnp.where(fd>1e-14,root,-jnp.inf);leave=jnp.where(fd< -1e-14,root,jnp.inf)
     t0=jnp.maximum(0.,jnp.max(enter,axis=-1));t1=jnp.minimum(1.,jnp.min(leave,axis=-1))
-    # Collinear rectangle edges are owned by the triangle boundary above.
     valid=jnp.all((~parallel)|(f0>1e-14),axis=-1)&(t1>t0)
     boundary+=jnp.sum(jnp.where(valid,t1-t0,0.),axis=-1)
     return jnp.clip(.5*boundary,0.,1.)
@@ -65,13 +59,13 @@ def make_rasterizer(res,chunk=8192):
     raster.defvjp(fwd,bwd)
     return raster
 
-def bin_triangles(hit_mm,res,width,halo=1,chunk=8192,capacity=None,growth_factor=0.):
-    """Conservative pairs, including a halo for bounded optical trial steps."""
+def bin_triangles(hit_mm,res,width,chunk=8192,capacity=None,growth_factor=0.):
+    """Face/pixel bounding-box pairs."""
     tri=(np.asarray(hit_mm)/width+.5)*res
     signed=cross(tri[:,1]-tri[:,0],tri[:,2]-tri[:,0])
     if not np.isfinite(tri).all() or np.any(np.asarray(signed)<=0):raise ValueError('Expected finite, positively oriented projected triangles')
-    lo=np.maximum(np.floor(tri.min(1)).astype(np.int64)-halo,0)
-    hi=np.minimum(np.floor(tri.max(1)).astype(np.int64)+halo,res-1)
+    lo=np.maximum(np.floor(tri.min(1)).astype(np.int64),0)
+    hi=np.minimum(np.floor(tri.max(1)).astype(np.int64),res-1)
     size=np.maximum(hi-lo+1,0);counts=np.prod(size,axis=1)
     face=np.repeat(np.arange(len(tri),dtype=np.int32),counts)
     start=np.repeat(np.cumsum(counts)-counts,counts);offset=np.arange(len(face))-start
@@ -82,14 +76,10 @@ def bin_triangles(hit_mm,res,width,halo=1,chunk=8192,capacity=None,growth_factor
     if required>capacity:raise ValueError(f'Area pair capacity {capacity} < required {required}')
     fi=np.full(capacity,-1,np.int32);pi=np.zeros(capacity,np.int32)
     fi[:used]=face;pi[:used]=pixel
-    return (fi.reshape(-1,chunk),pi.reshape(-1,chunk)),dict(pairs=used,capacity=capacity,halo_pixels=halo)
+    return (fi.reshape(-1,chunk),pi.reshape(-1,chunk)),dict(pairs=used,capacity=capacity)
 
 def make_parallel_rasterizer(res,chunk=8192):
-    """Partition independent overlap blocks across available JAX CPU devices.
-
-    Each device accumulates its own image and VJP. Sum reductions retain the
-    exact area model; only floating-point summation order changes.
-    """
+    """Parallelize rasterization across local JAX devices."""
     base=make_rasterizer(res,chunk)
     devices=jax.local_devices()
     if len(devices)==1:return base

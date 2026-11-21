@@ -1,35 +1,7 @@
-"""L-BFGS two-loop update and strong-Wolfe bracket/zoom line search.
-
-No model changes, projection, extra energy, gradient clipping or optimizer
-switch. Infeasible barrier trials have +infinity value and NO invented
-gradient. Decimal objective scalars retain precision in Wolfe comparisons.
-Zoom uses safeguarded quadratic interpolation with bisection at invalid
-endpoints, matching the standard strong-Wolfe bracket/zoom construction.
-"""
-from decimal import Decimal,localcontext
+"""L-BFGS with strong-Wolfe line search."""
 import math
 import numpy as np
 from scipy.optimize import OptimizeResult
-
-
-def _add(value,increment):
-    if isinstance(value,Decimal):
-        with localcontext() as context:
-            context.prec=80
-            return value+Decimal.from_float(float(increment))
-    return value+increment
-
-
-def _finite(value):
-    return value.is_finite() if isinstance(value,Decimal) else math.isfinite(value)
-
-
-def _difference(a,b):
-    if isinstance(a,Decimal):
-        with localcontext() as context:
-            context.prec=80
-            return a-b
-    return a-b
 
 
 def strong_wolfe(evaluate,feasible,x,f,g,p,initial_step,maxls,c1=1e-4,c2=.9):
@@ -48,13 +20,13 @@ def strong_wolfe(evaluate,feasible,x,f,g,p,initial_step,maxls,c1=1e-4,c2=.9):
         ff,gg=evaluate(xx)
         return xx,ff,gg
     def acceptable(ff,alpha):
-        return ff is not None and ff<=_add(f,c1*alpha*derivative0)
+        return ff is not None and ff<=f+c1*alpha*derivative0
     def zoom(lo,hi,flo,fhi,dlo):
         while trials<maxls:
             delta=hi-lo
             alpha=lo+.5*delta
             if fhi is not None:
-                denominator=2*(float(_difference(fhi,flo))-dlo*delta)
+                denominator=2*(float(fhi-flo)-dlo*delta)
                 if denominator!=0 and math.isfinite(denominator):
                     quadratic=lo-dlo*delta**2/denominator
                     a,b=sorted((lo,hi))
@@ -92,8 +64,7 @@ def strong_wolfe(evaluate,feasible,x,f,g,p,initial_step,maxls,c1=1e-4,c2=.9):
 
 
 def minimize_lbfgs(objective,x0,feasible=None,maxiter=1000,gtol=1e-5,ftol=1e-12,
-                   maxls=50,maxcor=10,callback=None,patience=None,initial_step=0.1):
-    """Standard unconstrained L-BFGS for a barrier objective's feasible domain."""
+                   maxls=50,maxcor=10,callback=None,initial_step=0.1):
     x=np.asarray(x0,float).copy();history=[]
     evaluations=0;iterations=0;invalid_trials=0;total_trials=0
     best={};evaluation_iteration=0
@@ -102,7 +73,7 @@ def minimize_lbfgs(objective,x0,feasible=None,maxiter=1000,gtol=1e-5,ftol=1e-12,
         nonlocal evaluations
         value,gradient=objective(xx);gradient=np.asarray(gradient,float)
         evaluations+=1
-        if not _finite(value) or gradient.shape!=xx.shape or not np.isfinite(gradient).all():
+        if not math.isfinite(value) or gradient.shape!=xx.shape or not np.isfinite(gradient).all():
             raise RuntimeError('Nonfinite objective or gradient at feasible point')
         if not best or value<best['fun']:
             best.update(x=xx.copy(),fun=value,jac=gradient.copy(),iteration=evaluation_iteration,
@@ -113,8 +84,7 @@ def minimize_lbfgs(objective,x0,feasible=None,maxiter=1000,gtol=1e-5,ftol=1e-12,
         return OptimizeResult(x=x,fun=f,jac=g,nit=iterations,nfev=evaluations,success=success,
                               status=status,message=message,invalid_trials=invalid_trials,
                               line_search_trials=total_trials,best_x=best['x'],best_fun=best['fun'],
-                              best_jac=best['jac'],best_iteration=best['iteration'],
-                              iterations_without_improvement=iterations-best['iteration'])
+                              best_jac=best['jac'],best_iteration=best['iteration'])
     if np.max(abs(g))<=gtol:return result(True,0,'Gradient tolerance satisfied')
     for iteration in range(maxiter):
         evaluation_iteration=iteration+1
@@ -135,8 +105,6 @@ def minimize_lbfgs(objective,x0,feasible=None,maxiter=1000,gtol=1e-5,ftol=1e-12,
         alpha,xnew,fnew,gnew=accepted
         s=xnew-x;y=gnew-g;ys=float(y@s)
         if not np.any(s):return result(False,2,'Floating-point step has zero displacement')
-        # L-BFGS requires positive curvature. Nonpositive pairs are omitted,
-        # as in the standard positive-definite inverse-Hessian update.
         if ys>np.finfo(float).eps*np.linalg.norm(s)*np.linalg.norm(y):
             history.append((s,y,1./ys))
             if len(history)>maxcor:history.pop(0)
@@ -145,8 +113,6 @@ def minimize_lbfgs(objective,x0,feasible=None,maxiter=1000,gtol=1e-5,ftol=1e-12,
             try:callback(x)
             except StopIteration:return result(False,99,'Callback requested stop at accepted iterate')
         if np.max(abs(g))<=gtol:return result(True,0,'Gradient tolerance satisfied')
-        if patience is not None and iterations-best['iteration']>=patience:
-            return result(False,3,f'No new lowest feasible loss in {patience} iterations')
-        if ftol>0 and abs(_difference(oldf,f))<=ftol*max(1.,abs(float(oldf)),abs(float(f))):
+        if ftol>0 and abs(oldf-f)<=ftol*max(1.,abs(float(oldf)),abs(float(f))):
             return result(True,0,'Relative energy reduction tolerance satisfied after nonzero strong-Wolfe step')
     return result(False,1,'L-BFGS iteration budget exhausted')

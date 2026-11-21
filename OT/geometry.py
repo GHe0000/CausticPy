@@ -1,20 +1,7 @@
 import numpy as np
 from scipy.spatial import Delaunay
 from scipy.sparse import coo_matrix
-def disk_mesh(c,n):
-    R=c.diameter_mm/2;step=2*R/n
-    a=np.linspace(-R,R,n+1);xx,yy=np.meshgrid(a,a)
-    xy=np.c_[xx.ravel(),yy.ravel()]
-    xy=xy[np.linalg.norm(xy,axis=1)<R-step*.45]
-    t=np.arange(c.boundary_segments)*2*np.pi/c.boundary_segments
-    boundary=np.arange(len(xy),len(xy)+len(t))
-    xy=np.vstack([xy,R*np.c_[np.cos(t),np.sin(t)]])
-    tri=Delaunay(xy)
-    f=tri.simplices.copy()
-    a=xy[f[:,1]]-xy[f[:,0]];b=xy[f[:,2]]-xy[f[:,0]]
-    cross=a[:,0]*b[:,1]-a[:,1]*b[:,0]
-    f[cross<0]=f[cross<0][:,[0,2,1]]
-    return xy,f,boundary,tri
+
 def operators(xy,f):
     p=xy[f];m=np.stack([p[:,1]-p[:,0],p[:,2]-p[:,0]],axis=1)
     inv=np.linalg.inv(m)
@@ -29,7 +16,7 @@ def operators(xy,f):
     return gx,gy,area,edges
 
 def clean_convex_mesh(points):
-    """Remove numerically collinear boundary triangles; retain a single convex boundary."""
+    """Drop degenerate boundary triangles and return a single convex boundary."""
     points=np.asarray(points);kept=np.arange(len(points))
     for _ in range(8):
         tri=Delaunay(points);f=tri.simplices.copy()

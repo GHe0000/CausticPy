@@ -1,4 +1,4 @@
-"""Read actual STL, retain its complete top surface and connectivity."""
+"""STL surface I/O and target loading."""
 from pathlib import Path
 import hashlib
 import numpy as np
@@ -38,6 +38,24 @@ def export_surface(v, f, boundary, path, *, ascii_stl=True, fix_normals=False):
         raise ValueError('Invalid output solid')
     mesh.export(path,file_type='stl_ascii' if ascii_stl else 'stl')
     return mesh
+
+
+def export_solid_stl(xy, f, boundary, z, min_thickness_mm, out, *, ascii_stl=True):
+    if z.min() < min_thickness_mm - 1e-8:
+        raise RuntimeError('Thin lens')
+    stl_path = out / 'lens.stl'
+    mesh = export_surface(np.c_[xy, z], f, boundary, stl_path,
+                          ascii_stl=ascii_stl, fix_normals=True)
+    reread = trimesh.load_mesh(stl_path)
+    if not reread.is_watertight:
+        raise RuntimeError('STL round-trip failed')
+    return dict(watertight=bool(mesh.is_watertight), winding_consistent=bool(mesh.is_winding_consistent),
+                euler_number=int(mesh.euler_number), volume_mm3=float(mesh.volume),
+                vertices=len(mesh.vertices), faces=len(mesh.faces),
+                min_thickness_mm=float(z.min()), max_thickness_mm=float(z.max()),
+                cnc_height_field=True, tool_radius_compensation=False,
+                ascii_precision_stl=ascii_stl, stl_units='mm (STL itself is unitless)',
+                body_count=1)
 
 
 def load_target(path,center=True):

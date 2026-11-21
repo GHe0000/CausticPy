@@ -1,4 +1,4 @@
-"""Read linear gray samples and optionally center them by an integer shift."""
+"""Target grayscale loading, centering and resizing."""
 
 import numpy as np
 from PIL import Image
@@ -27,3 +27,12 @@ def center_pattern(gray):
     if np.count_nonzero(shifted) != np.count_nonzero(gray):
         raise ValueError('Centering clipped nonzero target pixels')
     return shifted, (dx, dy)
+
+
+def resize_gray(gray, width):
+    height = max(1, round(gray.shape[0] * width / gray.shape[1]))
+    return np.asarray(Image.fromarray(gray.astype('float32')).resize((width, height), Image.Resampling.BOX), dtype=float)
+
+
+def target_dimensions(gray, target_size_mm):
+    return target_size_mm, target_size_mm * gray.shape[0] / gray.shape[1]

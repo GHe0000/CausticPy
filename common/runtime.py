@@ -1,4 +1,4 @@
-"""Optional runtime overrides, applied before NumPy/JAX/SDOT imports."""
+"""Runtime environment configuration."""
 from pathlib import Path
 import os,shutil
 
@@ -42,7 +42,6 @@ def resolve_runtime(options,base):
 
 def configure_runtime(options):
     validate_runtime(options)
-    # Double precision defaults to true; other missing keys leave the environment untouched.
     add_dll_directory=getattr(os,'add_dll_directory',None)
     if options.get('dll_dirs') and not callable(add_dll_directory):
         raise ValueError('runtime.dll_dirs is configured, but this Python has no DLL-directory registration API; omit dll_dirs and configure the native library loader externally')
@@ -70,3 +69,15 @@ def configure_runtime(options):
             path=Path(folder)
             if not path.is_dir():raise ValueError('runtime.dll_dirs directory not found: '+folder)
             _DLL_HANDLES.append(add_dll_directory(str(path)))
+
+
+def collect_environment():
+    """Return runtime environment metadata."""
+    import importlib.metadata as md, sys
+    import jax
+    return dict(python=sys.executable, version=sys.version, devices=list(map(str, jax.devices())),
+                float64=bool(jax.config.jax_enable_x64), logical_cpus=os.cpu_count(),
+                compiler=os.environ.get('CXX'),
+                cache={k: os.environ.get(k) for k in ['LOOM_CACHE_DIR', 'LOOM_BUILD_DIR', 'MPLCONFIGDIR', 'JAX_COMPILATION_CACHE_DIR']},
+                threads={k: os.environ.get(k) for k in ['CAUSTIC_THREADS', 'LOOM_NB_THREADS', 'SDOT_NB_THREADS', 'OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS', 'XLA_FLAGS']},
+                packages={p: md.version(p) for p in ['numpy', 'scipy', 'jax', 'jaxlib', 'optax', 'trimesh', 'Pillow', 'scikit-image', 'matplotlib', 'sdot']})

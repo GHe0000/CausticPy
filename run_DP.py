@@ -1,4 +1,4 @@
-"""Run DP optimization of a plano-freeform lens STL."""
+"""DP lens optimization CLI."""
 
 import argparse
 import json
@@ -56,7 +56,7 @@ def main():
     v0, faces, boundary, source = load_surface(config_path.parent / config['input_stl'])
     logging.info('Loaded %s vertices and %s exit faces', f'{len(v0):,}', f'{len(faces):,}')
 
-    # The optics model works in screen-pixel units. The STL is in mm.
+    # Convert mm to screen-pixel units.
     optics = config['optics']
     res = len(gray)
     scale = optics['target_size_mm'] / res
@@ -80,7 +80,7 @@ def main():
     logging.info('Curvature fit residual %.8g -> %.8g',
                  initialization['zero_directed_residual_sum'], initialization['fitted_directed_residual_sum'])
 
-    # Fix the aperture outline in XY. Its heights and all interior XYZ remain free.
+    # Fix boundary XY; keep boundary Z and interior XYZ free.
     free = np.ones(vertices.shape, dtype=bool)
     free[np.unique(boundary), :2] = False
     free_ids = np.flatnonzero(free.ravel())
@@ -91,7 +91,7 @@ def main():
         v = base.at[free_ids].set(x[:len(free_ids)]).reshape(vertices.shape)
         return v, x[len(free_ids):].reshape(curvature.shape)
 
-    target = jnp.asarray(gray[::-1].copy())  # PNG rows are down, screen Y is up.
+    target = jnp.asarray(gray[::-1].copy())  # Flip PNG Y to screen +Y.
     raster = make_parallel_rasterizer(res, opt['raster_chunk'])
 
     def energy(x, pairs):
@@ -109,7 +109,7 @@ def main():
         nonlocal capacity, evaluations, last_terms, last_value
         v, _ = unpack(x)
         hit = np.asarray(geo(v)['hit'])
-        pairs, info = bin_triangles(hit - res / 2, res, float(res), halo=0,
+        pairs, info = bin_triangles(hit - res / 2, res, float(res),
                                     chunk=opt['raster_chunk'], capacity=capacity, growth_factor=.2)
         capacity = info['capacity']
         evaluations += 1
